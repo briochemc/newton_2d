@@ -1,0 +1,1 @@
+# Newton method 2D example to test ideas
