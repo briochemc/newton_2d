@@ -114,7 +114,7 @@ while itc < maxit
     itsham = isham;
     jac_age = -1;
     %jac = complex_numjac(f,x,S,g) ;
-    jac = feval(Df,x) ;
+    jac = real(feval(Df,x)) ;
     jacf = linfactor(jac) ;
   end
   itsham = itsham-1;
@@ -124,20 +124,26 @@ while itc < maxit
   % used in a solve. A fresh Jacobian has an age of -1 at birth.
   jac_age = jac_age+1;
   xold = x; fold = f0;
-  [step,iarm,x,f0,armflag] = armijo(direction,x,f0,f,maxarm);
-  % If the line search fails and the Jacobian is old, update it.
-  % If the Jacobian is fresh; you're dead.
-  if armflag == 1
-    if jac_age > 0
-      sol = xold;
-      x = xold; f0 = fold;
-      fprintf('Armijo fail, ');
-    else
-      fprintf('\n  │     ierr = 2 (Complete Armijo failure).\n');
-      sol = xold;
-      ierr = 2;
-      return
+  if itc <= 10
+    [step,iarm,x,f0,armflag] = armijo(direction,x,f0,f,maxarm);
+    % If the line search fails and the Jacobian is old, update it.
+    % If the Jacobian is fresh; you're dead.
+    if armflag == 1
+      if jac_age > 0
+        sol = xold;
+        x = xold; f0 = fold;
+        fprintf('Armijo fail, ');
+      else
+        fprintf('\n  │     ierr = 2 (Complete Armijo failure).\n');
+        sol = xold;
+        ierr = 2;
+        return
+      end
     end
+  else
+    % If more than 10 iterations, just Newton step it
+    x = x + direction ;
+    f0 = feval(f,x) ;
   end
   fnrm = norm(f0);
   it_hist = [it_hist',[fnrm,iarm]']';

@@ -1,8 +1,11 @@
 clear all
 close all
 
-f = @(chi) [chi(1) + chi(2) ; chi(1)^2 + chi(2)^2 - 1] ;
-Df = @(chi) [1 1 ; 2*chi(1) 2*chi(2)] ;
+ieps = 1e-10 ;
+p = 1 + i * ieps ;
+
+
+cost = @(chi) sum((chi - [1;1]).^2) ;
 
 % make 2d mesh
 x = (-5:0.05:6)+0.001 ;
@@ -25,19 +28,19 @@ end
 end
 
 figure ;
-surf(X,Y,Fx','EdgeColor','none')
+surf(X,Y,real(Fx)','EdgeColor','none')
 hold on
-contour3(X,Y,Fx',-10:10,'k')
-contour3(X,Y,Fx',-0.1:0.1:0.1,'r')
+contour3(X,Y,real(Fx)',-10:10,'k')
+contour3(X,Y,real(Fx)',-0.1:0.1:0.1,'r')
 
 figure ;
-surf(X,Y,Fy','EdgeColor','none')
+surf(X,Y,real(Fy)','EdgeColor','none')
 hold on
-contour3(X,Y,Fy',-5:5,'k')
-contour3(X,Y,Fy',-0.1:0.1:0.1,'r')
+contour3(X,Y,real(Fy)',-5:5,'k')
+contour3(X,Y,real(Fy)',-0.1:0.1:0.1,'r')
 
 % norm of F
-normF = sqrt(Fx.^2 + Fy.^2) ;
+normF = sqrt(real(Fx).^2 + real(Fy).^2) ;
 
 figure ;
 contourf(X,Y,normF',0:1:40)
@@ -69,7 +72,8 @@ set( h2, 'Color', 'k' )
 xlim_save = xlim ;
 ylim_save = ylim ;
 
-chi_start = [1.1;3+i*1e-10] ;
+
+chi_start = [1.1;3] ;
 chi_Chord_n = chi_start ;
 chi_Newton_n = chi_Chord_n ;
 for ii = 1:49
@@ -78,10 +82,10 @@ for ii = 1:49
   chi_Chord_n(:,ii+1) = chi_Chord - Df(chi0) \ f(chi_Chord) ;
   chi_Newton_n(:,ii+1) = chi_Newton - Df(chi_Newton) \ f(chi_Newton) ;
 end
-[sol, it_hist, ierr, x_hist] = nsold(f,Df,chi_start) ;
+[sol, it_hist, ierr, chi_Kelley_n] = nsold(f,Df,chi_start) ;
 plot(chi_Chord_n(1,:),chi_Chord_n(2,:),'o-r','linewidth',2)
 plot(chi_Newton_n(1,:),chi_Newton_n(2,:),'o-k','linewidth',2)
-plot(x_hist(1,:),x_hist(2,:),'o-y','linewidth',2)
+plot(chi_Kelley_n(1,:),chi_Kelley_n(2,:),'o-y','linewidth',2)
 xlim(xlim_save) ;
 ylim(ylim_save) ;
 
@@ -90,9 +94,12 @@ figure
 for ii = 1:50
   fchi_Chord_n(:,ii) = f(chi_Chord_n(:,ii)) ;
   fchi_Newton_n(:,ii) = f(chi_Newton_n(:,ii)) ;
+  cchi_Chord_n(ii) = cost(chi_Chord_n(:,ii)) ;
+  cchi_Newton_n(ii) = cost(chi_Newton_n(:,ii)) ;
 end
-for ii = 1:size(x_hist,2) 
-  fchi_Kelley_n(:,ii) = f(x_hist(:,ii)) ;
+for ii = 1:size(chi_Kelley_n,2)
+  fchi_Kelley_n(:,ii) = f(chi_Kelley_n(:,ii)) ;
+  cchi_Kelley_n(ii) = cost(chi_Kelley_n(:,ii)) ;
 end
 clear h
 h(1) = semilogy(sqrt(sum(real(fchi_Chord_n).^2))) ;
@@ -102,14 +109,78 @@ h(3) = semilogy(sqrt(sum(real(fchi_Kelley_n).^2))) ;
 iend = size(fchi_Kelley_n,2) ;
 h(4) = semilogy(iend,sqrt(sum(real(fchi_Kelley_n(:,iend)).^2)),'xk') ;
 legend(h,{'Chord','Newton','Kelley (Default nsold)','Armijo fail'})
+title('|f(x_n,p)|, real part')
 
 figure ;
-h(1) = semilogy(sqrt(sum(imag(fchi_Chord_n).^2))) ;
+h(1) = semilogy(sqrt(sum(real(fchi_Chord_n).^2))/sqrt(sum(real(fchi_Chord_n(:,1)).^2))) ;
 hold on
-h(2) = semilogy(sqrt(sum(imag(fchi_Newton_n).^2))) ;
-h(3) = semilogy(sqrt(sum(imag(fchi_Kelley_n).^2))) ;
+h(2) = semilogy(sqrt(sum(real(fchi_Newton_n).^2))/sqrt(sum(real(fchi_Newton_n(:,1)).^2))) ;
+h(3) = semilogy(sqrt(sum(real(fchi_Kelley_n).^2))/sqrt(sum(real(fchi_Kelley_n(:,1)).^2))) ;
+ax = gca;
+ax.ColorOrderIndex = 1;
+h(4) = semilogy(sqrt(sum(imag(fchi_Chord_n).^2))/sqrt(sum(imag(fchi_Kelley_n(:,1)).^2)),'--') ;
+h(5) = semilogy(sqrt(sum(imag(fchi_Newton_n).^2))/sqrt(sum(imag(fchi_Kelley_n(:,1)).^2)),'--') ;
+h(6) = semilogy(sqrt(sum(imag(fchi_Kelley_n).^2))/sqrt(sum(imag(fchi_Kelley_n(:,1)).^2)),'--') ;
+legend(h,{'Chord R','Newton R','Kelley (Default nsold) R','Chord I','Newton I','Kelley (Default nsold) I'})
+grid on
+title('relative error in |f(x_n,p)|, real and imaginary part')
+
+figure ;
+h(1) = semilogy(abs((real(cchi_Chord_n)-real(cchi_Chord_n(:,end)))/real(cchi_Chord_n(:,end))),'-o') ;
+hold on
+h(2) = semilogy(abs((real(cchi_Newton_n)-real(cchi_Newton_n(:,end)))/real(cchi_Newton_n(:,end))),'-o') ;
+h(3) = semilogy(abs((real(cchi_Kelley_n)-real(cchi_Kelley_n(:,end)))/real(cchi_Kelley_n(:,end))),'-o') ;
+ax = gca;
+ax.ColorOrderIndex = 1;
+h(4) = semilogy(abs((imag(cchi_Chord_n)-imag(cchi_Chord_n(:,end)))/imag(cchi_Chord_n(:,end))),'-x') ;
+h(5) = semilogy(abs((imag(cchi_Newton_n)-imag(cchi_Newton_n(:,end)))/imag(cchi_Newton_n(:,end))),'-x') ;
+h(6) = semilogy(abs((imag(cchi_Kelley_n)-imag(cchi_Kelley_n(:,end)))/imag(cchi_Kelley_n(:,end))),'-x') ;
+legend(h,{'Chord R','Newton R','Kelley (Default nsold) R','Chord I','Newton I','Kelley (Default nsold) I'})
+grid on
+title('relative error in cost, real and imaginary part')
+
+
+figure ;
+h(1) = semilogy(abs(diff(real(cchi_Chord_n))/real(cchi_Chord_n(end))),'-o') ;
+hold on
+h(2) = semilogy(abs(diff(real(cchi_Newton_n))/real(cchi_Newton_n(end))),'-o') ;
+h(3) = semilogy(abs(diff(real(cchi_Kelley_n))/real(cchi_Kelley_n(end))),'-o') ;
+ax = gca;
+ax.ColorOrderIndex = 1;
+h(4) = semilogy(abs(diff(imag(cchi_Chord_n))/imag(cchi_Chord_n(end))),'-x') ;
+h(5) = semilogy(abs(diff(imag(cchi_Newton_n))/imag(cchi_Newton_n(end))),'-x') ;
+h(6) = semilogy(abs(diff(imag(cchi_Kelley_n))/imag(cchi_Kelley_n(end))),'-x') ;
+legend(h,{'Chord R','Newton R','Kelley (Default nsold) R','Chord I','Newton I','Kelley (Default nsold) I'})
+grid on
+title('Cauchy relative diff of cost, real and imaginary part')
+
+figure ;
+h(1) = semilogy(sqrt(sum(imag(fchi_Chord_n / ieps).^2))) ;
+hold on
+h(2) = semilogy(sqrt(sum(imag(fchi_Newton_n / ieps).^2))) ;
+h(3) = semilogy(sqrt(sum(imag(fchi_Kelley_n / ieps).^2))) ;
 iend = size(fchi_Kelley_n,2) ;
-h(4) = semilogy(iend,sqrt(sum(imag(fchi_Kelley_n(:,iend)).^2)),'xk') ;
+h(4) = semilogy(iend,sqrt(sum(imag(fchi_Kelley_n(:,iend) / ieps).^2)),'xk') ;
 legend(h,{'Chord','Newton','Kelley (Default nsold)','Armijo fail'})
+title('|f(x_n,p)|, imaginary part')
+
+
+figure
+h(1) = semilogy(sqrt(sum(real(chi_Chord_n - chi_Chord_n(:,end)).^2))) ;
+hold on
+h(2) = semilogy(sqrt(sum(real(chi_Newton_n - chi_Newton_n(:,end)).^2))) ;
+h(3) = semilogy(sqrt(sum(real(chi_Kelley_n - chi_Kelley_n(:,end)).^2))) ;
+legend(h,{'Chord','Newton','Kelley (Default nsold)'})
+title('|x_n-x_{50}|, real part')
+
+
+figure ;
+h(1) = semilogy(sqrt(sum(imag(chi_Chord_n - chi_Chord_n(:,end)).^2))) ;
+hold on
+h(2) = semilogy(sqrt(sum(imag(chi_Newton_n - chi_Newton_n(:,end)).^2))) ;
+h(3) = semilogy(sqrt(sum(imag(chi_Kelley_n - chi_Kelley_n(:,end)).^2))) ;
+legend(h,{'Chord','Newton','Kelley (Default nsold)'})
+title('|x_n-x_{50}|, imag part')
+
 
 
