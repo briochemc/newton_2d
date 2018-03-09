@@ -1,4 +1,4 @@
-function [sol, it_hist, ierr, x_hist] = nsold(f,x)
+function [sol, it_hist, ierr, x_hist] = nsold(f,x,atol)
 % NSOLD  Newton-Armijo nonlinear solver
 %
 % Factor Jacobians with Gaussian Elimination
@@ -98,7 +98,7 @@ itsham = isham;
 % main iteration loop
 fprintf('  │   step %d: |f(x)| = %g\n',itc,fnrm)
 %while (fnrm > stop_tol & itc < maxit) | (itc < minit)
-while itc < maxit
+while (itc < maxit) & (fnrm > atol)
   % keep track of the ratio (rat = fnrm/frnmo)
   % of successive residual norms and
   % the iteration counter (itc)

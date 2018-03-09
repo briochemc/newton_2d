@@ -2,7 +2,7 @@ function [calC,DpcalC,DppcalC,xstar] = mycalCost(p,xobs,x0)
 
 % find xstar(p)
 fun = @(x) myf(x,p) ;
-xstar = nsold(fun,x0) ;
+xstar = nsold(fun,x0,1e-20) ;
 
 [c,Dxc,Dxxc] = mycost(xstar,xobs) ;
 calC = c ;
